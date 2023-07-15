@@ -5,7 +5,7 @@
 #include <ctype.h>
 #include "nec.h"
 
-char cwd[4096];
+char commandBuffer[4096];
 
 char* read_file(const char* path)
 {
@@ -21,7 +21,7 @@ char* read_file(const char* path)
     return string;
 }
 
-char* execute_command(const char* command)
+char* execute_command(const char* command, int autoFree)
 {
     const size_t command_len = strlen(command);
     char* extended = malloc(command_len + 11);
@@ -37,6 +37,8 @@ char* execute_command(const char* command)
         return NULL;
     }
 
+    if(autoFree) return NULL;
+
     char* output = read_file(".gitter");
     unlink(".gitter");
     return output;
@@ -44,12 +46,18 @@ char* execute_command(const char* command)
 
 char* git_get_current_branch(void)
 {
-    return execute_command("git branch --show-current");
+    return execute_command("git branch --show-current", 0);
+}
+
+void git_set_current_branch(const char* name)
+{
+    sprintf(commandBuffer, "git switch %s", name);
+    execute_command(commandBuffer, 1);
 }
 
 char** git_get_branches(void)
 {
-    char* command = execute_command("git branch -a");
+    char* command = execute_command("git branch -a", 0);
     if(command == NULL) return NULL;
     const char* raw = command;
     char** branches = NULL;
@@ -77,5 +85,32 @@ char** git_get_branches(void)
 
     free(command);
     return branches;
+}
+
+void git_create_branch(const char* name)
+{
+    sprintf(commandBuffer, "git branch %s && git switch %s", name, name);
+    execute_command(commandBuffer, 1);
+}
+
+void git_delete_branch(const char* name)
+{
+    sprintf(commandBuffer, "git branch -D %s", name);
+    execute_command(commandBuffer, 1);
+}
+
+void git_fetch_and_prune(void)
+{
+    execute_command("git fetch origin && git remote prune origin", 1);
+}
+
+void git_pull(void)
+{
+    execute_command("git pull", 1);
+}
+
+void git_push(void)
+{
+    execute_command("git push", 1);
 }
 

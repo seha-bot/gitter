@@ -1,62 +1,72 @@
 #include "gitter.h"
 #include <stdio.h>
-#include <string.h>
 #include "nec.h"
-#include "termui.h"
 
-termui* termui_selector(const char* icon, termui* child)
+void branch_view(void)
 {
-    return termui_box(TERMUI_ROW, 0, 1,
-        termui_text(icon, termui_box(0, strlen(icon), 1, 0)),
-        child,
-    0);
-}
-
-int branch_view(void)
-{
-    termui *root, *status;
-    root = termui_box(0, 0, 0,
-        status = termui_box(0, 0, 1, 0),
-        termui_box(0, 1, 1, 0),
-        termui_text("  n: New branch (prompt input)", termui_box(0, 0, 1, 0)),
-        termui_text("  d: Delete branch (selected one)", termui_box(0, 0, 1, 0)),
-        termui_text("  q: Back", termui_box(0, 0, 1, 0)), // FINISHED
-        termui_box(0, 1, 1, 0),
-    0);
-
-    size_t selectedId = -1;
-    char** branches = git_get_branches(&selectedId);
-    if(selectedId == -1) return 1;
-    char* abc = (char*)malloc(strlen(branches[selectedId]) + 25);
-    sprintf(abc, "Current branch: %s (clean)", branches[selectedId]);
-    status->text = abc;
-
-    for(int i = 0; i < nec_size(branches); i++)
+    int selection = 0;
+    while(selection != -1)
     {
-        if(i == 0)
+        termui *root, *box;
+        root = wrapper(box = termui_box(0, 0, 0,
+            termui_text("  s: Switch", termui_box(0, 0, 1, 0)),
+            termui_text("  n: New branch (prompt input)", termui_box(0, 0, 1, 0)),
+            termui_text("  d: Delete", termui_box(0, 0, 1, 0)),
+            termui_text("  q: Back", termui_box(0, 0, 1, 0)),
+            termui_box(0, 1, 1, 0),
+        0));
+
+        char** branches = git_get_branches();
+
+        for(int i = 0; i < nec_size(branches); i++)
         {
-            nec_push(root->children,
-                termui_text("Branches", termui_box(0, 0, 1, 0))
+            if(i == 0)
+            {
+                nec_push(box->children,
+                    termui_text("Branches", termui_box(0, 0, 1, 0))
+                );
+            }
+            nec_push(box->children,
+                selector(i == selection, termui_text(branches[i], termui_box(0, 0, 1, 0)))
             );
         }
-        nec_push(root->children,
-            termui_selector(">", termui_text(branches[i], termui_box(0, 0, 1, 0)))
-        );
-    }
 
-    termui_fullscreen(root);
-    termui_plot(root);
+        termui_fullscreen(root);
+        termui_plot(root);
 
-    while(termui_read(0) != 'q')
-    {
-    }
+        char c = termui_read(0);
+        if(c == 'j' && selection != nec_size(branches) - 1) selection++;
+        else if(c == 'k' && selection != 0) selection--;
+        else if(c == 's')
+        {
+            git_set_current_branch(branches[selection]);
+        }
+        else if(c == 'n')
+        {
+            char* name = input_bar();
+            if(name != NULL)
+            {
+                if(nec_size(name) > 1)
+                {
+                    git_create_branch(name);
+                }
+                nec_free(name);
+            }
+        }
+        else if(c == 'd')
+        {
+            git_delete_branch(branches[selection]);
+            selection = 0;
+        }
+        if(c == 'q') selection = -1;
 
-    for(int i = 0; i < nec_size(branches); i++)
-    {
-        nec_free(branches[i]);
+        for(int i = 0; i < nec_size(branches); i++)
+        {
+            nec_free(branches[i]);
+        }
+        nec_free(branches);
+        wrapper_free(root);
+        termui_free(root);
     }
-    nec_free(branches);
-    termui_free(root);
-    return 0;
 }
 

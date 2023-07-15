@@ -16,10 +16,11 @@ build:
 
 build/deps/%.o: build/deps/%.c
 	@gcc -g -c -Iinc -Ibuild/deps $^ -o build/$(notdir $@)
+
 build/%.o: src/%.c
 	@gcc -g -c -Iinc -Ibuild/deps $^ -o build/$(notdir $@)
 
-build/main: $(patsubst src/%.c,build/%.o,$(wildcard src/*.c))
+build/main: $(patsubst src/%.c,build/%.o,$(wildcard src/*.c src/*/*.c))
 	@gcc build/*.o $(LIBS) -o $@
 
 clean:
